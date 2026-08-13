@@ -1,35 +1,33 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flight Log Pro v6</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Flight Log Pro v8 - Canada & Map</title>
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { font-family: sans-serif; background-color: #f4f7f6; padding: 10px; color: #333; font-size: 14px; }
         .container { max-width: 500px; margin: auto; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        h1 { font-size: 18px; text-align: center; margin-bottom: 15px; }
+        h1 { font-size: 18px; text-align: center; margin-bottom: 10px; }
         
-        /* 設定エリア */
-        .settings-section { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
-        .settings-section div { flex: 1; min-width: 140px; }
+        .settings-section { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
         .settings-section label { font-size: 10px; color: #64748b; font-weight: bold; display: block; }
         .settings-input { width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; }
 
-        /* GPS監視セクション（ここを拡張） */
         .gps-section { background: #eff6ff; border: 1px dashed #3b82f6; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; }
         .speed-display { font-size: 32px; font-weight: bold; color: #2563eb; line-height: 1; }
-        .coords-display { font-family: monospace; font-size: 11px; color: #475569; margin-top: 8px; background: rgba(255,255,255,0.5); padding: 4px; border-radius: 4px; }
+        
+        /* Map style */
+        #map { height: 180px; width: 100%; margin-top: 10px; border-radius: 8px; border: 1px solid #cbd5e1; z-index: 1; }
+
+        .nearest-airport { margin-top: 8px; padding: 5px; background: #dbeafe; border-radius: 4px; font-weight: bold; color: #1e40af; font-size: 13px; font-family: monospace; }
+        .coords-display { font-family: monospace; font-size: 10px; color: #475569; margin-top: 5px; }
         
         .signal-box { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; margin-top: 5px; }
         .signal-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
-        .sig-excellent { background: #10b981; box-shadow: 0 0 5px #10b981; }
-        .sig-fair { background: #f59e0b; }
-        .sig-poor { background: #ef4444; }
+        .sig-excellent { background: #10b981; } .sig-fair { background: #f59e0b; } .sig-poor { background: #ef4444; }
 
-        /* 入力フォーム */
         .input-group { margin-bottom: 12px; padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
         .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
         .input-row div { flex: 1; }
@@ -42,97 +40,114 @@
         .btn-gps { background: #6366f1; color: white; padding: 8px; font-size: 13px; margin-top: 10px; }
         
         .total-box { margin-top: 15px; padding: 10px; background: #f1f5f9; border-radius: 6px; text-align: right; }
-        table { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 12px; }
-        th, td { border-bottom: 1px solid #e2e8f0; padding: 8px 4px; text-align: left; vertical-align: top; }
-        .info-sub { font-size: 10px; color: #64748b; margin-top: 2px; }
+        table { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 11px; }
+        th, td { border-bottom: 1px solid #e2e8f0; padding: 8px 2px; text-align: left; vertical-align: top; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Flight Log Pro v6</h1>
+    <h1>Flight Log Pro v8 (Canada)</h1>
 
     <div class="settings-section">
-        <div>
-            <label>Report To (Email)</label>
-            <input type="email" id="userEmail" class="settings-input" onchange="saveSettings()">
-        </div>
-        <div>
-            <label>Default PIC Name</label>
-            <input type="text" id="defaultPic" class="settings-input" onchange="saveSettings()">
-        </div>
+        <div><label>Report To (Email)</label><input type="email" id="userEmail" class="settings-input" onchange="saveSettings()"></div>
+        <div><label>PIC Name</label><input type="text" id="defaultPic" class="settings-input" onchange="saveSettings()"></div>
     </div>
 
-    <!-- GPS監視セクション -->
     <div class="gps-section">
         <div class="speed-display"><span id="currentSpeed">0</span> <small style="font-size:14px">km/h</small></div>
         
-        <!-- 【テスト用】現在位置の表示 -->
+        <!-- CYXE 02NM East Format -->
+        <div id="airportBox" class="nearest-airport" style="display:none;">
+             <span id="nearestDisplay">---</span>
+        </div>
+
+        <!-- Leaflet Map Container -->
+        <div id="map"></div>
+
         <div class="coords-display">
-            Lat: <span id="curLat">0.00000</span> / Lon: <span id="curLon">0.00000</span>
+            Lat: <span id="curLat">0.000</span> / Lon: <span id="curLon">0.000</span>
         </div>
 
         <div class="signal-box">
             <div id="sigDot" class="signal-dot"></div>
-            <span id="sigText">GPS停止中</span> <span id="sigAcc" style="color:#94a3b8"></span>
+            <span id="sigText">GPS Stop</span> <span id="sigAcc" style="color:#94a3b8"></span>
         </div>
-        <button class="btn-gps" id="gpsBtn" onclick="toggleGPS()">GPS監視を開始</button>
+        <button class="btn-gps" id="gpsBtn" onclick="toggleGPS()">Start GPS Monitoring</button>
     </div>
 
     <div class="input-group">
         <div class="input-row">
-            <div>
-                <label>Date</label>
-                <input type="date" id="date">
-            </div>
-            <div>
-                <label>Aircraft Reg</label>
-                <input type="text" id="reg" placeholder="JA000A">
-            </div>
+            <div><label>Date</label><input type="date" id="date"></div>
+            <div><label>Reg</label><input type="text" id="reg"></div>
         </div>
         <div class="input-row">
             <div><label>PIC Name</label><input type="text" id="pic"></div>
         </div>
         <div class="input-row">
             <div>
-                <label>Departure / Place</label>
+                <label>Dep / Place</label>
                 <input type="time" id="upTime">
-                <input type="text" id="upPlace" placeholder="From" style="margin-top:4px; font-size:13px;">
+                <input type="text" id="upPlace" placeholder="From" style="margin-top:4px;">
             </div>
             <div>
-                <label>Arrival / Place</label>
+                <label>Arr / Place</label>
                 <input type="time" id="downTime">
-                <input type="text" id="downPlace" placeholder="To" style="margin-top:4px; font-size:13px;">
+                <input type="text" id="downPlace" placeholder="To" style="margin-top:4px;">
             </div>
         </div>
     </div>
     
-    <button class="btn-add" onclick="addLog()">フライトを保存</button>
-    <button class="btn-mail" onclick="sendEmailAndCopy()">送信 / 全コピー</button>
+    <button class="btn-add" onclick="addLog()">Save Flight</button>
+    <button class="btn-mail" onclick="sendEmailAndCopy()">Send Email / Copy</button>
 
     <div class="total-box">
         <div class="total-value" id="totalTimeDisplay">0.0 h</div>
     </div>
 
     <table id="logTable">
-        <thead>
-            <tr><th>Detail / Route</th><th>Time</th><th>Dur</th></tr>
-        </thead>
+        <thead><tr><th>Detail</th><th>Time</th><th>Dur</th></tr></thead>
         <tbody id="logBody"></tbody>
     </table>
 </div>
 
+<!-- Leaflet Map JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
+    // Canada Major Airports Data
+    const AIRPORTS = [
+        {name:"Saskatoon", code:"CYXE", lat:52.1708, lon:-106.6998},
+        {name:"Vancouver", code:"CYVR", lat:49.1967, lon:-123.1815},
+        {name:"Calgary", code:"CYYC", lat:51.1139, lon:-114.0203},
+        {name:"Edmonton", code:"CYEG", lat:53.3097, lon:-113.5797},
+        {name:"Winnipeg", code:"CYWG", lat:49.9100, lon:-97.2400},
+        {name:"Toronto", code:"CYYZ", lat:43.6777, lon:-79.6248},
+        {name:"Montreal", code:"CYUL", lat:45.4706, lon:-73.7408},
+        {name:"Ottawa", code:"CYOW", lat:45.3225, lon:-75.6672},
+        {name:"Halifax", code:"CYHZ", lat:44.8808, lon:-63.5086},
+        {name:"Regina", code:"CYQR", lat:50.4319, lon:-104.6658}
+    ];
+
     let watchId = null;
     let isFlying = false;
+    let map, marker;
 
     window.onload = () => {
         document.getElementById('date').valueAsDate = new Date();
         document.getElementById('userEmail').value = localStorage.getItem('userEmailSetting') || "";
-        const savedPic = localStorage.getItem('picSetting') || "";
-        document.getElementById('defaultPic').value = savedPic;
-        document.getElementById('pic').value = savedPic;
+        const pic = localStorage.getItem('picSetting') || "";
+        document.getElementById('defaultPic').value = pic;
+        document.getElementById('pic').value = pic;
         document.getElementById('reg').value = localStorage.getItem('lastReg') || "";
+        
+        // Initialize Map
+        map = L.map('map').setView([52.1, -106.6], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+        marker = L.marker([0, 0]).addTo(map);
+        
         displayLogs();
     };
 
@@ -142,85 +157,109 @@
         document.getElementById('pic').value = document.getElementById('defaultPic').value;
     }
 
-    async function getPlaceName(lat, lon) {
-        try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
-                headers: { 'Accept-Language': 'ja' }
-            });
-            const data = await response.json();
-            return data.display_name.split(',')[0] || "不明";
-        } catch (e) { return "位置取得失敗"; }
+    // Distance in Nautical Miles (NM)
+    function calcDistNM(lat1, lon1, lat2, lon2) {
+        const R = 3440.065; // Earth radius in NM
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    // Calculate Bearing and Direction
+    function getBearingDirection(lat1, lon1, lat2, lon2) {
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
+        const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+                  Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
+        let brng = Math.atan2(y, x) * 180 / Math.PI;
+        brng = (brng + 360) % 360; // 0-360
+        
+        const sectors = ["North", "NE", "East", "SE", "South", "SW", "West", "NW", "North"];
+        return sectors[Math.round(brng / 45)];
     }
 
     function toggleGPS() {
         const btn = document.getElementById('gpsBtn');
+        const box = document.getElementById('airportBox');
         if (watchId === null) {
-            watchId = navigator.geolocation.watchPosition(async pos => {
-                // 電波状況表示の更新
+            watchId = navigator.geolocation.watchPosition(pos => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
                 const acc = pos.coords.accuracy;
+                
+                // Update Map
+                map.setView([lat, lon], 13);
+                marker.setLatLng([lat, lon]);
+
+                document.getElementById('curLat').innerText = lat.toFixed(3);
+                document.getElementById('curLon').innerText = lon.toFixed(3);
+                
                 const dot = document.getElementById('sigDot');
-                const text = document.getElementById('sigText');
                 document.getElementById('sigAcc').innerText = `±${Math.round(acc)}m`;
-                dot.className = "signal-dot";
-                if (acc < 25) { dot.classList.add('sig-excellent'); text.innerText = "良好"; }
-                else if (acc < 100) { dot.classList.add('sig-fair'); text.innerText = "普通"; }
-                else { dot.classList.add('sig-poor'); text.innerText = "不安定"; }
+                dot.className = "signal-dot " + (acc < 30 ? "sig-excellent" : acc < 100 ? "sig-fair" : "sig-poor");
+                document.getElementById('sigText').innerText = acc < 30 ? "Good" : "Weak";
 
-                // 【テスト用】現在位置（座標）の表示更新
-                document.getElementById('curLat').innerText = pos.coords.latitude.toFixed(5);
-                document.getElementById('curLon').innerText = pos.coords.longitude.toFixed(5);
+                // Find Nearest and Display
+                let nearest = AIRPORTS[0];
+                let minDist = calcDistNM(lat, lon, nearest.lat, nearest.lon);
+                AIRPORTS.forEach(ap => {
+                    const d = calcDistNM(lat, lon, ap.lat, ap.lon);
+                    if (d < minDist) { minDist = d; nearest = ap; }
+                });
+                
+                const dir = getBearingDirection(nearest.lat, nearest.lon, lat, lon);
+                const displayStr = `${nearest.code} ${minDist.toFixed(0).padStart(2,'0')}NM ${dir}`;
+                box.style.display = "block";
+                document.getElementById('nearestDisplay').innerText = displayStr;
 
-                // 速度の表示
-                let speedKmh = Math.round((pos.coords.speed || 0) * 3.6);
-                document.getElementById('currentSpeed').innerText = speedKmh;
+                let speed = Math.round((pos.coords.speed || 0) * 3.6);
+                document.getElementById('currentSpeed').innerText = speed;
 
-                // 自動記録ロジック
-                const timeStr = new Date().toTimeString().slice(0,5);
-                if (!isFlying && speedKmh > 80) {
+                const time = new Date().toTimeString().slice(0,5);
+                if (!isFlying && speed > 80) {
                     isFlying = true;
-                    document.getElementById('upTime').value = timeStr;
-                    document.getElementById('upPlace').value = "取得中...";
-                    document.getElementById('upPlace').value = await getPlaceName(pos.coords.latitude, pos.coords.longitude);
-                } else if (isFlying && speedKmh < 40) {
+                    document.getElementById('upTime').value = time;
+                    document.getElementById('upPlace').value = nearest.code;
+                } else if (isFlying && speed < 40) {
                     isFlying = false;
-                    document.getElementById('downTime').value = timeStr;
-                    document.getElementById('downPlace').value = "取得中...";
-                    document.getElementById('downPlace').value = await getPlaceName(pos.coords.latitude, pos.coords.longitude);
+                    document.getElementById('downTime').value = time;
+                    document.getElementById('downPlace').value = nearest.code;
                 }
-            }, (err) => {
-                document.getElementById('sigText').innerText = "エラー: " + err.message;
-            }, { enableHighAccuracy: true });
-            btn.innerText = "GPS監視を停止";
+            }, null, { enableHighAccuracy: true });
+            btn.innerText = "Stop GPS";
         } else {
             navigator.geolocation.clearWatch(watchId);
             watchId = null;
-            btn.innerText = "GPS監視を開始";
-            document.getElementById('sigText').innerText = "GPS停止中";
-            document.getElementById('curLat').innerText = "0.00000";
-            document.getElementById('curLon').innerText = "0.00000";
+            btn.innerText = "Start GPS";
+            box.style.display = "none";
         }
     }
 
     function addLog() {
-        const date = document.getElementById('date').value;
-        const reg = document.getElementById('reg').value;
-        const pic = document.getElementById('pic').value;
-        const upT = document.getElementById('upTime').value;
-        const downT = document.getElementById('downTime').value;
-        const upP = document.getElementById('upPlace').value;
-        const downP = document.getElementById('downPlace').value;
-
-        if (!date || !upT || !downT) return alert("入力不足");
-
-        const [h1, m1] = upT.split(':').map(Number);
-        let [h2, m2] = downT.split(':').map(Number);
-        if ((h2 * 60 + m2) < (h1 * 60 + m1)) h2 += 24;
-        const duration = (((h2 * 60 + m2) - (h1 * 60 + m1)) / 60).toFixed(1);
+        const l = {
+            id: Date.now(),
+            date: document.getElementById('date').value,
+            reg: document.getElementById('reg').value,
+            pic: document.getElementById('pic').value,
+            upTime: document.getElementById('upTime').value,
+            downTime: document.getElementById('downTime').value,
+            upPlace: document.getElementById('upPlace').value,
+            downPlace: document.getElementById('downPlace').value
+        };
+        if (!l.date || !l.upTime || !l.downTime) return alert("Missing entry");
+        
+        const [h1, m1] = l.upTime.split(':').map(Number);
+        let [h2, m2] = l.downTime.split(':').map(Number);
+        if ((h2*60+m2) < (h1*60+m1)) h2 += 24;
+        l.duration = (((h2*60+m2)-(h1*60+m1))/60).toFixed(1);
 
         const logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
-        logs.push({ id: Date.now(), date, reg, pic, upTime: upT, downTime: downT, upPlace: upP, downPlace: downP, duration });
+        logs.push(l);
         localStorage.setItem('flightLogs', JSON.stringify(logs));
-        localStorage.setItem('lastReg', reg);
+        localStorage.setItem('lastReg', l.reg);
         displayLogs();
     }
 
@@ -232,7 +271,7 @@
         logs.slice().reverse().forEach(log => {
             total += parseFloat(log.duration);
             logBody.insertAdjacentHTML('beforeend', `<tr>
-                <td><b>${log.date.slice(5)}</b> <span style="color:#2563eb">${log.reg||'--'}</span><div class="info-sub">${log.upPlace||'--'}➔${log.downPlace||'--'}</div><div class="info-sub">PIC:${log.pic||'--'}</div></td>
+                <td><b>${log.date.slice(5)}</b> ${log.reg||''}<br><small>${log.upPlace}➔${log.downPlace}</small></td>
                 <td>${log.upTime}-${log.downTime}</td><td>${log.duration}</td>
             </tr>`);
         });
@@ -241,11 +280,10 @@
 
     function sendEmailAndCopy() {
         const logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
-        const email = document.getElementById('userEmail').value;
-        let body = "Flight Log\n\n";
+        let body = "Flight Log Report\n\n";
         logs.forEach((l, i) => body += `${i+1}. ${l.date} [${l.reg}] ${l.upPlace}->${l.downPlace} ${l.upTime}-${l.downTime} ${l.duration}h PIC:${l.pic}\n`);
         navigator.clipboard.writeText(body);
-        window.location.href = `mailto:${email}?subject=FlightLog&body=${encodeURIComponent(body)}`;
+        window.location.href = `mailto:${document.getElementById('userEmail').value}?subject=FlightLog&body=${encodeURIComponent(body)}`;
     }
 </script>
 </body>
