@@ -1,0 +1,8 @@
+{
+  "short_name": "FlightLog",
+  "name": "Flight Time Recorder",
+  "display": "standalone",
+  "start_url": "index.html",
+  "background_color": "#f4f7f6",
+  "theme_color": "#3b82f6"
+}
