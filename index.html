@@ -3,64 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flight Log Pro v3</title>
+    <title>Flight Log Pro v6</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
-        body { font-family: sans-serif; background-color: #f4f7f6; padding: 15px; color: #333; font-size: 14px; }
-        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        body { font-family: sans-serif; background-color: #f4f7f6; padding: 10px; color: #333; font-size: 14px; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         h1 { font-size: 18px; text-align: center; margin-bottom: 15px; }
-        .settings-section { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
+        
+        /* 設定エリア */
+        .settings-section { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+        .settings-section div { flex: 1; min-width: 140px; }
+        .settings-section label { font-size: 10px; color: #64748b; font-weight: bold; display: block; }
+        .settings-input { width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; }
+
+        /* GPS監視セクション（ここを拡張） */
         .gps-section { background: #eff6ff; border: 1px dashed #3b82f6; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; }
-        .speed-display { font-size: 28px; font-weight: bold; color: #2563eb; }
-        .input-group { margin-bottom: 10px; position: relative; }
-        label { display: block; font-size: 12px; font-weight: bold; color: #475569; margin-bottom: 2px; }
-        input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 8px; }
+        .speed-display { font-size: 32px; font-weight: bold; color: #2563eb; line-height: 1; }
+        .coords-display { font-family: monospace; font-size: 11px; color: #475569; margin-top: 8px; background: rgba(255,255,255,0.5); padding: 4px; border-radius: 4px; }
+        
+        .signal-box { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; margin-top: 5px; }
+        .signal-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+        .sig-excellent { background: #10b981; box-shadow: 0 0 5px #10b981; }
+        .sig-fair { background: #f59e0b; }
+        .sig-poor { background: #ef4444; }
+
+        /* 入力フォーム */
+        .input-group { margin-bottom: 12px; padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .input-row div { flex: 1; }
+        label { display: block; font-size: 11px; font-weight: bold; color: #475569; margin-bottom: 2px; }
+        input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
+        
+        button { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 5px; }
         .btn-add { background: #10b981; color: white; }
         .btn-mail { background: #3b82f6; color: white; margin-top: 15px; }
-        .btn-gps { background: #6366f1; color: white; padding: 8px; font-size: 13px; }
+        .btn-gps { background: #6366f1; color: white; padding: 8px; font-size: 13px; margin-top: 10px; }
+        
         .total-box { margin-top: 15px; padding: 10px; background: #f1f5f9; border-radius: 6px; text-align: right; }
         table { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 12px; }
-        th, td { border-bottom: 1px solid #e2e8f0; padding: 8px 4px; text-align: left; }
-        .place-text { font-size: 10px; color: #64748b; display: block; max-width: 150px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        th, td { border-bottom: 1px solid #e2e8f0; padding: 8px 4px; text-align: left; vertical-align: top; }
+        .info-sub { font-size: 10px; color: #64748b; margin-top: 2px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Flight Log Pro v3</h1>
+    <h1>Flight Log Pro v6</h1>
 
     <div class="settings-section">
-        <label>送信先メール</label>
-        <input type="email" id="userEmail" onchange="saveEmailSetting()" placeholder="メールアドレス">
-    </div>
-
-    <div class="gps-section">
-        <div class="speed-display"><span id="currentSpeed">0</span> <small>km/h</small></div>
-        <button class="btn-gps" id="gpsBtn" onclick="toggleGPS()">GPS監視を開始</button>
-        <div id="gpsStatus" style="font-size: 11px; color: #64748b; margin-top: 4px;">位置未取得</div>
-    </div>
-
-    <div class="input-group">
-        <label>日付 / 出発地</label>
-        <input type="date" id="date">
-        <input type="text" id="upPlace" placeholder="出発地（自動取得可）" style="margin-top:5px; font-size:13px;">
-    </div>
-    <div class="input-group">
-        <label>Up Time / Down Time</label>
-        <div style="display:flex; gap:5px;">
-            <input type="time" id="upTime" oninput="checkNextDay()">
-            <input type="time" id="downTime" oninput="checkNextDay()">
+        <div>
+            <label>Report To (Email)</label>
+            <input type="email" id="userEmail" class="settings-input" onchange="saveSettings()">
+        </div>
+        <div>
+            <label>Default PIC Name</label>
+            <input type="text" id="defaultPic" class="settings-input" onchange="saveSettings()">
         </div>
     </div>
+
+    <!-- GPS監視セクション -->
+    <div class="gps-section">
+        <div class="speed-display"><span id="currentSpeed">0</span> <small style="font-size:14px">km/h</small></div>
+        
+        <!-- 【テスト用】現在位置の表示 -->
+        <div class="coords-display">
+            Lat: <span id="curLat">0.00000</span> / Lon: <span id="curLon">0.00000</span>
+        </div>
+
+        <div class="signal-box">
+            <div id="sigDot" class="signal-dot"></div>
+            <span id="sigText">GPS停止中</span> <span id="sigAcc" style="color:#94a3b8"></span>
+        </div>
+        <button class="btn-gps" id="gpsBtn" onclick="toggleGPS()">GPS監視を開始</button>
+    </div>
+
     <div class="input-group">
-        <input type="text" id="downPlace" placeholder="到着地（自動取得可）" style="font-size:13px;">
+        <div class="input-row">
+            <div>
+                <label>Date</label>
+                <input type="date" id="date">
+            </div>
+            <div>
+                <label>Aircraft Reg</label>
+                <input type="text" id="reg" placeholder="JA000A">
+            </div>
+        </div>
+        <div class="input-row">
+            <div><label>PIC Name</label><input type="text" id="pic"></div>
+        </div>
+        <div class="input-row">
+            <div>
+                <label>Departure / Place</label>
+                <input type="time" id="upTime">
+                <input type="text" id="upPlace" placeholder="From" style="margin-top:4px; font-size:13px;">
+            </div>
+            <div>
+                <label>Arrival / Place</label>
+                <input type="time" id="downTime">
+                <input type="text" id="downPlace" placeholder="To" style="margin-top:4px; font-size:13px;">
+            </div>
+        </div>
     </div>
     
     <button class="btn-add" onclick="addLog()">フライトを保存</button>
-    <button class="btn-mail" onclick="sendEmailAndCopy()">記録送信 / コピー</button>
+    <button class="btn-mail" onclick="sendEmailAndCopy()">送信 / 全コピー</button>
 
     <div class="total-box">
         <div class="total-value" id="totalTimeDisplay">0.0 h</div>
@@ -68,11 +116,7 @@
 
     <table id="logTable">
         <thead>
-            <tr>
-                <th>Date / Place</th>
-                <th>Up-Down</th>
-                <th>Time</th>
-            </tr>
+            <tr><th>Detail / Route</th><th>Time</th><th>Dur</th></tr>
         </thead>
         <tbody id="logBody"></tbody>
     </table>
@@ -85,36 +129,53 @@
     window.onload = () => {
         document.getElementById('date').valueAsDate = new Date();
         document.getElementById('userEmail').value = localStorage.getItem('userEmailSetting') || "";
+        const savedPic = localStorage.getItem('picSetting') || "";
+        document.getElementById('defaultPic').value = savedPic;
+        document.getElementById('pic').value = savedPic;
+        document.getElementById('reg').value = localStorage.getItem('lastReg') || "";
         displayLogs();
     };
 
-    function saveEmailSetting() {
+    function saveSettings() {
         localStorage.setItem('userEmailSetting', document.getElementById('userEmail').value);
+        localStorage.setItem('picSetting', document.getElementById('defaultPic').value);
+        document.getElementById('pic').value = document.getElementById('defaultPic').value;
     }
 
     async function getPlaceName(lat, lon) {
         try {
-            // 無料の逆ジオコーディングサービスを使用
             const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
                 headers: { 'Accept-Language': 'ja' }
             });
             const data = await response.json();
-            // 空港名や地名を取得
-            return data.display_name.split(',')[0] || "不明な場所";
-        } catch (e) {
-            return `${lat.toFixed(2)},${lon.toFixed(2)}`;
-        }
+            return data.display_name.split(',')[0] || "不明";
+        } catch (e) { return "位置取得失敗"; }
     }
 
     function toggleGPS() {
         const btn = document.getElementById('gpsBtn');
         if (watchId === null) {
             watchId = navigator.geolocation.watchPosition(async pos => {
+                // 電波状況表示の更新
+                const acc = pos.coords.accuracy;
+                const dot = document.getElementById('sigDot');
+                const text = document.getElementById('sigText');
+                document.getElementById('sigAcc').innerText = `±${Math.round(acc)}m`;
+                dot.className = "signal-dot";
+                if (acc < 25) { dot.classList.add('sig-excellent'); text.innerText = "良好"; }
+                else if (acc < 100) { dot.classList.add('sig-fair'); text.innerText = "普通"; }
+                else { dot.classList.add('sig-poor'); text.innerText = "不安定"; }
+
+                // 【テスト用】現在位置（座標）の表示更新
+                document.getElementById('curLat').innerText = pos.coords.latitude.toFixed(5);
+                document.getElementById('curLon').innerText = pos.coords.longitude.toFixed(5);
+
+                // 速度の表示
                 let speedKmh = Math.round((pos.coords.speed || 0) * 3.6);
                 document.getElementById('currentSpeed').innerText = speedKmh;
-                const now = new Date();
-                const timeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-                
+
+                // 自動記録ロジック
+                const timeStr = new Date().toTimeString().slice(0,5);
                 if (!isFlying && speedKmh > 80) {
                     isFlying = true;
                     document.getElementById('upTime').value = timeStr;
@@ -126,17 +187,24 @@
                     document.getElementById('downPlace').value = "取得中...";
                     document.getElementById('downPlace').value = await getPlaceName(pos.coords.latitude, pos.coords.longitude);
                 }
-            }, null, { enableHighAccuracy: true });
-            btn.innerText = "GPS停止";
+            }, (err) => {
+                document.getElementById('sigText').innerText = "エラー: " + err.message;
+            }, { enableHighAccuracy: true });
+            btn.innerText = "GPS監視を停止";
         } else {
             navigator.geolocation.clearWatch(watchId);
             watchId = null;
-            btn.innerText = "GPS開始";
+            btn.innerText = "GPS監視を開始";
+            document.getElementById('sigText').innerText = "GPS停止中";
+            document.getElementById('curLat').innerText = "0.00000";
+            document.getElementById('curLon').innerText = "0.00000";
         }
     }
 
     function addLog() {
         const date = document.getElementById('date').value;
+        const reg = document.getElementById('reg').value;
+        const pic = document.getElementById('pic').value;
         const upT = document.getElementById('upTime').value;
         const downT = document.getElementById('downTime').value;
         const upP = document.getElementById('upPlace').value;
@@ -146,13 +214,13 @@
 
         const [h1, m1] = upT.split(':').map(Number);
         let [h2, m2] = downT.split(':').map(Number);
-        let isNextDay = false;
-        if ((h2 * 60 + m2) < (h1 * 60 + m1)) { h2 += 24; isNextDay = true; }
+        if ((h2 * 60 + m2) < (h1 * 60 + m1)) h2 += 24;
         const duration = (((h2 * 60 + m2) - (h1 * 60 + m1)) / 60).toFixed(1);
 
         const logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
-        logs.push({ id: Date.now(), date, upTime: upT, downTime: downT, upPlace: upP, downPlace: downP, duration, isNextDay });
+        logs.push({ id: Date.now(), date, reg, pic, upTime: upT, downTime: downT, upPlace: upP, downPlace: downP, duration });
         localStorage.setItem('flightLogs', JSON.stringify(logs));
+        localStorage.setItem('lastReg', reg);
         displayLogs();
     }
 
@@ -164,9 +232,8 @@
         logs.slice().reverse().forEach(log => {
             total += parseFloat(log.duration);
             logBody.insertAdjacentHTML('beforeend', `<tr>
-                <td>${log.date.slice(5)}<br><span class="place-text">${log.upPlace || ''} ➔ ${log.downPlace || ''}</span></td>
-                <td>${log.upTime}-${log.downTime}${log.isNextDay ? '<span style="color:red">+1</span>' : ''}</td>
-                <td>${log.duration}h</td>
+                <td><b>${log.date.slice(5)}</b> <span style="color:#2563eb">${log.reg||'--'}</span><div class="info-sub">${log.upPlace||'--'}➔${log.downPlace||'--'}</div><div class="info-sub">PIC:${log.pic||'--'}</div></td>
+                <td>${log.upTime}-${log.downTime}</td><td>${log.duration}</td>
             </tr>`);
         });
         document.getElementById('totalTimeDisplay').innerText = total.toFixed(1) + " h";
@@ -175,12 +242,10 @@
     function sendEmailAndCopy() {
         const logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
         const email = document.getElementById('userEmail').value;
-        let bodyText = "Flight Log\n\n";
-        logs.forEach((log, i) => {
-            bodyText += `${i+1}. ${log.date} | ${log.upPlace} -> ${log.downPlace} | ${log.upTime}-${log.downTime} | ${log.duration}h\n`;
-        });
-        navigator.clipboard.writeText(bodyText);
-        window.location.href = `mailto:${email}?subject=FlightLog&body=${encodeURIComponent(bodyText)}`;
+        let body = "Flight Log\n\n";
+        logs.forEach((l, i) => body += `${i+1}. ${l.date} [${l.reg}] ${l.upPlace}->${l.downPlace} ${l.upTime}-${l.downTime} ${l.duration}h PIC:${l.pic}\n`);
+        navigator.clipboard.writeText(body);
+        window.location.href = `mailto:${email}?subject=FlightLog&body=${encodeURIComponent(body)}`;
     }
 </script>
 </body>
