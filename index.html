@@ -3,287 +3,361 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flight Log Pro v17</title>
+    <title>Flight Log Pro v22</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: sans-serif; background-color: #f4f7f6; padding: 10px; color: #333; transition: background-color 0.4s; }
-        body.recording-mode { background-color: #fee2e2; }
-        .container { max-width: 500px; margin: auto; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        
-        .source-tag { font-size: 10px; font-weight: bold; padding: 1px 6px; border-radius: 4px; background: #e2e8f0; color: #64748b; margin-left: 5px; vertical-align: middle; }
-        .tag-gps { background: #dbeafe; color: #1e40af; }
-        .tag-manual { background: #fef3c7; color: #92400e; }
+        /* --- CSS デザイン --- */
+        body { font-family: sans-serif; background-color: #f4f7f6; padding: 0; margin: 0; color: #333; transition: background-color 0.4s; }
+        body.recording-mode { background-color: #fee2e2; } /* 80km/h以上で赤背景 */
 
+        .header { background: #1e293b; color: white; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1000; }
+        .menu-btn { font-size: 24px; cursor: pointer; background: none; border: none; color: white; padding: 0; }
+        .header-title { font-size: 18px; font-weight: bold; }
+
+        /* サイドメニュー */
+        .side-menu { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.2); z-index: 2000; transition: 0.3s; padding: 20px; box-sizing: border-box; overflow-y: auto; }
+        .side-menu.open { left: 0; }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1500; display: none; }
+        .overlay.show { display: block; }
+
+        .menu-item { margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; }
+        .menu-item label { display: block; font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 5px; text-transform: uppercase; }
+        .menu-input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        .btn-weather { background: #0ea5e9; color: white; border: none; width: 100%; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; }
+
+        /* メインコンテンツ */
+        .content { padding: 15px; max-width: 500px; margin: auto; }
         .gps-section { background: #eff6ff; border: 1px dashed #3b82f6; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; }
-        .speed-display { font-size: 32px; font-weight: bold; color: #2563eb; line-height: 1.2; margin-bottom: 5px; }
+        .speed-display { font-size: 32px; font-weight: bold; color: #2563eb; line-height: 1.2; }
         .alt-divider { margin: 0 10px; color: #cbd5e1; font-weight: normal; }
 
-        .accuracy-badge { font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px; }
-        .acc-excellent { background: #dcfce7; color: #166534; border: 1px solid #166534; }
-        .acc-fair { background: #fef3c7; color: #92400e; border: 1px solid #92400e; }
-        .acc-poor { background: #fee2e2; color: #991b1b; border: 1px solid #991b1b; }
-
+        #map { height: 160px; width: 100%; margin: 8px 0; border-radius: 8px; z-index: 1; border: 1px solid #cbd5e1; }
         .gps-details { font-family: monospace; font-size: 10px; color: #475569; margin-top: 5px; line-height: 1.4; }
-        #map { height: 140px; width: 100%; margin: 8px 0; border-radius: 8px; z-index: 1; }
-        .airport-info { font-family: monospace; font-weight: bold; font-size: 14px; color: #1e40af; }
+        .accuracy-badge { font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
 
+        /* 入力フォーム */
         .input-group { margin-bottom: 12px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; background: #fff; }
         .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
         .input-row div { flex: 1; }
         label { display: block; font-size: 11px; font-weight: bold; color: #475569; margin-bottom: 2px; }
         input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
 
-        button { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        .source-tag { font-size: 9px; font-weight: bold; padding: 1px 4px; border-radius: 4px; background: #e2e8f0; margin-left: 4px; }
+        .tag-gps { background: #dbeafe; color: #1e40af; }
+        .tag-manual { background: #fef3c7; color: #92400e; }
+
+        /* ボタン */
+        button.main-btn { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 5px; }
         .btn-add { background: #10b981; color: white; border-bottom: 4px solid #059669; }
-        .btn-gps { background: #6366f1; color: white; padding: 8px; font-size: 13px; }
-        
+        .btn-gps { background: #6366f1; color: white; font-size: 13px; padding: 10px; }
+        .btn-email { background: #3b82f6; color: white; }
+        .btn-sms { background: #f59e0b; color: white; }
+
+        /* 履歴テーブル */
         table { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 11px; }
         th, td { border-bottom: 1px solid #e2e8f0; padding: 8px 2px; text-align: left; vertical-align: top; }
-        
-        /* 削除ボタンのスタイル */
-        .btn-del { color: #ccc; background: none; border: none; font-size: 18px; padding: 0 5px; cursor: pointer; font-weight: bold; margin-top: 4px; }
-        .btn-del:hover { color: #ef4444; }
-
-        .total-box { margin-top: 15px; padding: 10px; background: #f1f5f9; border-radius: 6px; text-align: right; }
+        .btn-del { color: #ccc; border: none; background: none; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .total-box { margin-top: 15px; padding: 10px; background: #f1f5f9; border-radius: 6px; text-align: right; font-weight: bold; }
+        #copyMessage { display:none; background:#dcfce7; color:#166534; font-size:11px; text-align:center; padding:5px; margin-top:5px; border-radius:4px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <span id="recordingBadge" style="display:none; color:red; font-weight:bold; font-size:12px;">● RECORDING</span>
-        <h1 style="font-size:18px; margin:0;">Flight Log Pro v17</h1>
+    <!-- Header -->
+    <div class="header">
+        <button class="menu-btn" onclick="toggleMenu()">☰</button>
+        <div class="header-title">Flight Log Pro</div>
+        <div id="recordingBadge" style="display:none; color:#f87171; font-size:12px;">● REC</div>
     </div>
 
-    <div class="gps-section">
-        <div class="speed-display">
-            <span id="currentSpeed">0</span><small style="font-size:14px">km/h</small>
-            <span class="alt-divider">|</span>
-            <span id="currentAlt">0</span><small style="font-size:14px">ft</small>
+    <!-- Sidebar Overlay -->
+    <div id="overlay" class="overlay" onclick="toggleMenu()"></div>
+
+    <!-- Sidebar Menu -->
+    <div id="sideMenu" class="side-menu">
+        <div style="text-align:right;"><button class="menu-btn" style="color:#333;" onclick="toggleMenu()">✕</button></div>
+        <h3>Settings</h3>
+        <div class="menu-item">
+            <label>Weather Services</label>
+            <button class="btn-weather" onclick="openNavCanada()">NAV CANADA Recall</button>
+            <p style="font-size: 9px; color: #64748b; margin-top: 4px;">Copies nearest: <span id="menuICAO">----</span></p>
         </div>
-        <div id="airportBox" class="airport-info">---</div>
-        <div class="gps-details">
-            Lat: <span id="curLat">0.0000</span> / Lon: <span id="curLon">0.0000</span><br>
-            Precision: <span id="curAccBadge" class="accuracy-badge">--</span>
+        <div class="menu-item">
+            <label>Email Settings</label>
+            <input type="email" id="userEmail" class="menu-input" onchange="saveSettings()">
         </div>
-        <div id="map"></div>
-        <button class="btn-gps" id="gpsBtn" onclick="toggleGPS()">Start GPS Monitor</button>
+        <div class="menu-item">
+            <label>SMS Settings (Phone #)</label>
+            <input type="tel" id="userPhone" class="menu-input" onchange="saveSettings()" placeholder="+1306...">
+        </div>
+        <div class="menu-item">
+            <label>Pilot Settings</label>
+            <input type="text" id="defaultPic" class="menu-input" onchange="saveSettings()">
+        </div>
+        <button style="background:none; border:none; color:#ef4444; font-size:11px; cursor:pointer;" onclick="clearAllData()">Reset All Data</button>
     </div>
 
-    <div class="input-group" id="formGroup">
-        <div class="input-row">
-            <div><label>Date</label><input type="date" id="date"></div>
-            <div><label>Registration</label><input type="text" id="reg"></div>
-        </div>
-        <div class="input-row">
-            <div><label>PIC</label><input type="text" id="pic"></div>
-        </div>
-        <div class="input-row">
-            <div>
-                <label>Dep (Up) <span id="labelUp" class="source-tag">NO GPS</span></label>
-                <input type="time" id="upTime" oninput="setManual('Up')">
-                <input type="text" id="upPlace" placeholder="Locating..." oninput="setManual('Up')" style="margin-top:4px;">
+    <!-- Main Content -->
+    <div class="content">
+        <!-- GPS Status -->
+        <div class="gps-section">
+            <div class="speed-display">
+                <span id="currentSpeed">0</span><small style="font-size:14px">km/h</small>
+                <span class="alt-divider">|</span>
+                <span id="currentAlt">0</span><small style="font-size:14px">ft</small>
             </div>
-            <div>
-                <label>Arr (Down) <span id="labelDown" class="source-tag">NO GPS</span></label>
-                <input type="time" id="downTime" oninput="setManual('Down')">
-                <input type="text" id="downPlace" placeholder="ICAO Format" oninput="setManual('Down')" style="margin-top:4px;">
+            <div id="airportBox" style="font-family:monospace; font-weight:bold; font-size:14px; color:#1e40af;">Waiting for GPS...</div>
+            <div id="map"></div>
+            <div class="gps-details">
+                Lat: <span id="curLat">0.0000</span> / Lon: <span id="curLon">0.0000</span><br>
+                Accuracy: <span id="curAccBadge" class="accuracy-badge">--</span>
+            </div>
+            <button class="main-btn btn-gps" id="gpsBtn" onclick="toggleGPS()">Start GPS Monitoring</button>
+        </div>
+
+        <!-- Input Form -->
+        <div class="input-group">
+            <div class="input-row">
+                <div><label>Date</label><input type="date" id="date"></div>
+                <div><label>Registration</label><input type="text" id="reg"></div>
+            </div>
+            <div class="input-row">
+                <div><label>PIC Name</label><input type="text" id="pic"></div>
+            </div>
+            <div class="input-row">
+                <div>
+                    <label>Dep (Up) <span id="labelUp" class="source-tag">OFF</span></label>
+                    <input type="time" id="upTime" oninput="setManual('Up')">
+                    <input type="text" id="upPlace" placeholder="From" oninput="setManual('Up')" style="margin-top:4px;">
+                </div>
+                <div>
+                    <label>Arr (Down) <span id="labelDown" class="source-tag">OFF</span></label>
+                    <input type="time" id="downTime" oninput="setManual('Down')">
+                    <input type="text" id="downPlace" placeholder="To" oninput="setManual('Down')" style="margin-top:4px;">
+                </div>
             </div>
         </div>
+        
+        <button class="main-btn btn-add" onclick="addLog()">Save Flight to History</button>
+        <div id="copyMessage">Logs copied to clipboard!</div>
+        <div style="display:flex; gap:8px; margin-top:5px;">
+            <button class="main-btn btn-email" onclick="sendEmail()">Email All</button>
+            <button class="main-btn btn-sms" onclick="sendSMS()">SMS All</button>
+        </div>
+
+        <div class="total-box">Total Hours: <span id="totalTimeDisplay">0.0</span> h</div>
+        <div id="logBody" style="margin-top:10px;"></div>
     </div>
-    
-    <button class="btn-add" onclick="addLog()">Save Flight</button>
-    <button style="background:#3b82f6; color:white; padding:10px;" onclick="sendEmailAndCopy()">Email All</button>
 
-    <div class="total-box">
-        <div class="total-value" id="totalTimeDisplay">0.0 h</div>
-    </div>
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="airports.js"></script>
 
-    <div id="logBody" style="margin-top:15px;"></div>
-</div>
+    <script>
+        // --- JavaScript ロジック ---
+        let watchId = null; let isFlying = false; let map, marker; let lastICAO = "CYXE"; let lastFormattedPlace = "";
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="airports.js"></script>
+        window.onload = () => {
+            document.getElementById('date').valueAsDate = new Date();
+            document.getElementById('userEmail').value = localStorage.getItem('userEmailSetting') || "";
+            document.getElementById('userPhone').value = localStorage.getItem('userPhoneSetting') || "";
+            const pic = localStorage.getItem('picSetting') || "";
+            document.getElementById('defaultPic').value = pic; document.getElementById('pic').value = pic;
+            document.getElementById('reg').value = localStorage.getItem('lastReg') || "";
+            
+            // Map 初期化 (Saskatoon周辺)
+            map = L.map('map').setView([52.17, -106.69], 10);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            marker = L.marker([0, 0]).addTo(map);
+            displayLogs();
+        };
 
-<script>
-    let watchId = null;
-    let isFlying = false;
-    let map, marker;
-    let lastFormattedPlace = "";
-
-    window.onload = () => {
-        document.getElementById('date').valueAsDate = new Date();
-        document.getElementById('pic').value = localStorage.getItem('picSetting') || "";
-        document.getElementById('reg').value = localStorage.getItem('lastReg') || "";
-        map = L.map('map').setView([52.17, -106.69], 10);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        marker = L.marker([0, 0]).addTo(map);
-        displayLogs();
-    };
-
-    function updateLabel(id, status) {
-        const el = document.getElementById(id);
-        if(el) {
-            el.innerText = status;
-            el.className = "source-tag " + (status === "with GPS" ? "tag-gps" : status === "manual" ? "tag-manual" : "");
+        function toggleMenu() {
+            document.getElementById('sideMenu').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('show');
         }
-    }
 
-    function setManual(type) {
-        updateLabel("label" + type, "manual");
-    }
+        function openNavCanada() {
+            navigator.clipboard.writeText(lastICAO).then(() => {
+                window.open("https://plan.navcanada.ca/wxrecall/", '_blank');
+            });
+        }
 
-    function calcDistNM(lat1, lon1, lat2, lon2) {
-        const R = 3440.065;
-        const dLat = (lat2-lat1)*Math.PI/180;
-        const dLon = (lon2-lon1)*Math.PI/180;
-        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
+        function saveSettings() {
+            localStorage.setItem('userEmailSetting', document.getElementById('userEmail').value);
+            localStorage.setItem('userPhoneSetting', document.getElementById('userPhone').value);
+            localStorage.setItem('picSetting', document.getElementById('defaultPic').value);
+            document.getElementById('pic').value = document.getElementById('defaultPic').value;
+        }
 
-    function getDirShort(lat1, lon1, lat2, lon2) {
-        const dLon = (lon2-lon1)*Math.PI/180;
-        const y = Math.sin(dLon)*Math.cos(lat2*Math.PI/180);
-        const x = Math.cos(lat1*Math.PI/180)*Math.sin(lat2*Math.PI/180)-Math.sin(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.cos(dLon);
-        const brng = (Math.atan2(y,x)*180/Math.PI + 360) % 360;
-        return ["N","NE","E","SE","S","SW","W","NW","N"][Math.round(brng/45)];
-    }
+        function clearAllData() {
+            if(confirm("Delete ALL logs?")) { localStorage.clear(); location.reload(); }
+        }
 
-    function getFormattedPlace(lat, lon) {
-        let nearest = AIRPORTS[0];
-        let minDist = calcDistNM(lat, lon, nearest.lat, nearest.lon);
-        AIRPORTS.forEach(ap => {
-            const d = calcDistNM(lat, lon, ap.lat, ap.lon);
-            if (d < minDist) { minDist = d; nearest = ap; }
-        });
-        if (minDist >= 5) {
-            const dir = getDirShort(nearest.lat, nearest.lon, lat, lon);
-            return `${nearest.code} ${Math.round(minDist)}NM ${dir}`;
-        } else {
+        function setManual(type) {
+            const el = document.getElementById("label" + type);
+            el.innerText = "manual"; el.style.background = "#fef3c7";
+        }
+
+        function calcDistNM(lat1, lon1, lat2, lon2) {
+            const R = 3440.065;
+            const dLat = (lat2-lat1)*Math.PI/180; const dLon = (lon2-lon1)*Math.PI/180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        function getDirShort(lat1, lon1, lat2, lon2) {
+            const dLon = (lon2-lon1)*Math.PI/180;
+            const y = Math.sin(dLon)*Math.cos(lat2*Math.PI/180);
+            const x = Math.cos(lat1*Math.PI/180)*Math.sin(lat2*Math.PI/180)-Math.sin(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.cos(dLon);
+            const brng = (Math.atan2(y,x)*180/Math.PI + 360) % 360;
+            return ["N","NE","E","SE","S","SW","W","NW","N"][Math.round(brng/45)];
+        }
+
+        function getFormattedPlace(lat, lon) {
+            let nearest = AIRPORTS[0]; let minDist = calcDistNM(lat, lon, nearest.lat, nearest.lon);
+            AIRPORTS.forEach(ap => {
+                const d = calcDistNM(lat, lon, ap.lat, ap.lon);
+                if (d < minDist) { minDist = d; nearest = ap; }
+            });
+            lastICAO = nearest.code; document.getElementById('menuICAO').innerText = lastICAO;
+            if (minDist >= 5) {
+                const dir = getDirShort(nearest.lat, nearest.lon, lat, lon);
+                return `${nearest.code} ${Math.round(minDist)}NM ${dir}`;
+            }
             return nearest.code;
         }
-    }
 
-    function toggleGPS() {
-        const btn = document.getElementById('gpsBtn');
-        const timeNow = new Date().toTimeString().slice(0,5);
-        if (watchId === null) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                const place = getFormattedPlace(pos.coords.latitude, pos.coords.longitude);
-                document.getElementById('upPlace').value = place;
-                lastFormattedPlace = place;
-                updateGPSUI(pos);
-            }, null, { enableHighAccuracy: true });
-            updateLabel("labelUp", "with GPS");
-            document.getElementById('upTime').value = timeNow;
-            watchId = navigator.geolocation.watchPosition(pos => {
-                updateGPSUI(pos);
-                lastFormattedPlace = getFormattedPlace(pos.coords.latitude, pos.coords.longitude);
-                document.getElementById('airportBox').innerText = lastFormattedPlace;
-                let speed = Math.round((pos.coords.speed || 0) * 3.6);
-                document.getElementById('currentSpeed').innerText = speed;
-                let altFt = Math.round((pos.coords.altitude || 0) * 3.28084);
-                document.getElementById('currentAlt').innerText = altFt;
-                const time = new Date().toTimeString().slice(0,5);
-                if (!isFlying && speed >= 80) {
-                    isFlying = true;
-                    document.body.classList.add('recording-mode');
-                    document.getElementById('recordingBadge').style.display = 'block';
-                    updateLabel("labelUp", "with GPS");
-                    document.getElementById('upTime').value = time;
+        function toggleGPS() {
+            const btn = document.getElementById('gpsBtn'); const timeNow = new Date().toTimeString().slice(0,5);
+            if (watchId === null) {
+                // 監視開始時に即時取得
+                navigator.geolocation.getCurrentPosition(pos => {
+                    lastFormattedPlace = getFormattedPlace(pos.coords.latitude, pos.coords.longitude);
                     document.getElementById('upPlace').value = lastFormattedPlace;
-                } else if (isFlying && speed < 80) {
-                    isFlying = false;
-                    document.body.classList.remove('recording-mode');
-                    document.getElementById('recordingBadge').style.display = 'none';
-                    updateLabel("labelDown", "with GPS");
-                    document.getElementById('downTime').value = time;
-                    document.getElementById('downPlace').value = lastFormattedPlace;
-                }
-            }, null, { enableHighAccuracy: true });
-            btn.innerText = "Stop Monitor (Record Arr)";
-        } else {
-            updateLabel("labelDown", "with GPS");
-            document.getElementById('downTime').value = timeNow;
-            document.getElementById('downPlace').value = lastFormattedPlace;
-            navigator.geolocation.clearWatch(watchId);
-            watchId = null;
-            btn.innerText = "Start Monitor (Record Dep)";
+                    updateGPSUI(pos);
+                }, null, { enableHighAccuracy: true });
+
+                document.getElementById('upTime').value = timeNow;
+                document.getElementById('labelUp').innerText = "with GPS";
+                document.getElementById('labelUp').style.background = "#dbeafe";
+
+                watchId = navigator.geolocation.watchPosition(pos => {
+                    updateGPSUI(pos);
+                    lastFormattedPlace = getFormattedPlace(pos.coords.latitude, pos.coords.longitude);
+                    document.getElementById('airportBox').innerText = lastFormattedPlace;
+                    
+                    let speed = Math.round((pos.coords.speed || 0) * 3.6);
+                    document.getElementById('currentSpeed').innerText = speed;
+                    document.getElementById('currentAlt').innerText = Math.round((pos.coords.altitude || 0) * 3.28084);
+                    
+                    const time = new Date().toTimeString().slice(0,5);
+                    if (!isFlying && speed >= 80) {
+                        isFlying = true; document.body.classList.add('recording-mode');
+                        document.getElementById('recordingBadge').style.display = 'block';
+                        document.getElementById('upTime').value = time;
+                        document.getElementById('upPlace').value = lastFormattedPlace;
+                        document.getElementById('labelUp').innerText = "with GPS";
+                    } else if (isFlying && speed < 80) {
+                        isFlying = false; document.body.classList.remove('recording-mode');
+                        document.getElementById('recordingBadge').style.display = 'none';
+                        document.getElementById('downTime').value = time;
+                        document.getElementById('downPlace').value = lastFormattedPlace;
+                        document.getElementById('labelDown').innerText = "with GPS";
+                        document.getElementById('labelDown').style.background = "#dbeafe";
+                    }
+                }, null, { enableHighAccuracy: true });
+                btn.innerText = "Stop Monitor (Record Arr)";
+            } else {
+                document.getElementById('downTime').value = timeNow;
+                document.getElementById('downPlace').value = lastFormattedPlace;
+                navigator.geolocation.clearWatch(watchId); watchId = null;
+                btn.innerText = "Start Monitor (Record Dep)";
+            }
         }
-    }
 
-    function updateGPSUI(pos) {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        const acc = pos.coords.accuracy;
-        map.setView([lat, lon], 13);
-        marker.setLatLng([lat, lon]);
-        document.getElementById('curLat').innerText = lat.toFixed(4);
-        document.getElementById('curLon').innerText = lon.toFixed(4);
-        const accBadge = document.getElementById('curAccBadge');
-        accBadge.innerText = `±${Math.round(acc)}m`;
-        accBadge.className = "accuracy-badge " + (acc <= 20 ? "acc-excellent" : acc <= 100 ? "acc-fair" : "acc-poor");
-    }
+        function updateGPSUI(pos) {
+            const lat = pos.coords.latitude; const lon = pos.coords.longitude; const acc = pos.coords.accuracy;
+            map.setView([lat, lon], 13); marker.setLatLng([lat, lon]);
+            document.getElementById('curLat').innerText = lat.toFixed(4);
+            document.getElementById('curLon').innerText = lon.toFixed(4);
+            const badge = document.getElementById('curAccBadge');
+            badge.innerText = `±${Math.round(acc)}m`;
+            badge.style.background = acc <= 20 ? "#dcfce7" : acc <= 100 ? "#fef3c7" : "#fee2e2";
+            badge.style.color = acc <= 20 ? "#166534" : acc <= 100 ? "#92400e" : "#991b1b";
+        }
 
-    function addLog() {
-        const uT = document.getElementById('upTime').value;
-        const dT = document.getElementById('downTime').value;
-        if (!uT || !dT) return alert("Times missing");
-        const l = {
-            id: Date.now(),
-            date: document.getElementById('date').value,
-            reg: document.getElementById('reg').value,
-            pic: document.getElementById('pic').value,
-            upTime: uT, downTime: dT,
-            upPlace: document.getElementById('upPlace').value,
-            downPlace: document.getElementById('downPlace').value
-        };
-        const [h1, m1] = uT.split(':').map(Number);
-        let [h2, m2] = dT.split(':').map(Number);
-        if ((h2*60+m2) < (h1*60+m1)) h2 += 24;
-        l.duration = (((h2*60+m2)-(h1*60+m1))/60).toFixed(1);
-        const logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
-        logs.push(l);
-        localStorage.setItem('flightLogs', JSON.stringify(logs));
-        localStorage.setItem('lastReg', l.reg);
-        displayLogs();
-    }
-
-    // 【新機能】個別削除関数
-    function deleteLog(id) {
-        if(confirm("Delete this flight log?")) {
-            let logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
-            logs = logs.filter(log => log.id !== id);
+        function addLog() {
+            const uT = document.getElementById('upTime').value;
+            const dT = document.getElementById('downTime').value;
+            if (!uT || !dT) return alert("Times missing");
+            const l = {
+                id: Date.now(),
+                date: document.getElementById('date').value,
+                reg: document.getElementById('reg').value,
+                pic: document.getElementById('pic').value,
+                upTime: uT, downTime: dT,
+                upPlace: document.getElementById('upPlace').value,
+                downPlace: document.getElementById('downPlace').value
+            };
+            const [h1, m1] = uT.split(':').map(Number); let [h2, m2] = dT.split(':').map(Number);
+            if ((h2*60+m2) < (h1*60+m1)) h2 += 24;
+            l.duration = (((h2*60+m2)-(h1*60+m1))/60).toFixed(1);
+            const logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
+            logs.push(l);
             localStorage.setItem('flightLogs', JSON.stringify(logs));
+            localStorage.setItem('lastReg', l.reg);
             displayLogs();
+            alert("Saved!");
         }
-    }
 
-    function displayLogs() {
-        const logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
-        const container = document.getElementById('logBody');
-        container.innerHTML = '<table><thead><tr><th>Date/Reg</th><th>Time</th><th>Dur</th><th></th></tr></thead><tbody id="tableItems"></tbody></table>';
-        const tableBody = document.getElementById('tableItems');
-        let total = 0;
-        logs.slice().reverse().forEach(log => {
-            total += parseFloat(log.duration);
-            tableBody.insertAdjacentHTML('beforeend', `<tr>
-                <td><b>${log.date.slice(5)}</b> ${log.reg}<br><small>${log.upPlace}➔${log.downPlace}</small></td>
-                <td>${log.upTime}-${log.downTime}</td>
-                <td>${log.duration}</td>
-                <td><button class="btn-del" onclick="deleteLog(${log.id})">×</button></td>
-            </tr>`);
-        });
-        document.getElementById('totalTimeDisplay').innerText = total.toFixed(1) + " h";
-    }
+        function deleteLog(id) {
+            if(confirm("Delete this log?")) {
+                let logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
+                logs = logs.filter(log => log.id !== id);
+                localStorage.setItem('flightLogs', JSON.stringify(logs));
+                displayLogs();
+            }
+        }
 
-    function sendEmailAndCopy() {
-        const logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
-        let body = "Flight Log Report\n\n";
-        logs.forEach((l, i) => body += `${i+1}. ${l.date} [${l.reg}] ${l.upPlace}->${l.downPlace} ${l.upTime}-${l.downTime} ${l.duration}h PIC:${l.pic}\n`);
-        navigator.clipboard.writeText(body);
-        window.location.href = `mailto:${localStorage.getItem('userEmailSetting')}?subject=FlightLog&body=${encodeURIComponent(body)}`;
-    }
-</script>
+        function displayLogs() {
+            const logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
+            const container = document.getElementById('logBody');
+            container.innerHTML = '<table><thead><tr><th>Date/Reg</th><th>Time</th><th>Dur</th><th></th></tr></thead><tbody id="tableItems"></tbody></table>';
+            const tableBody = document.getElementById('tableItems'); let total = 0;
+            logs.slice().reverse().forEach(log => {
+                total += parseFloat(log.duration);
+                tableBody.insertAdjacentHTML('beforeend', `<tr>
+                    <td><b>${log.date.slice(5)}</b> ${log.reg}<br><small>${log.upPlace}➔${log.downPlace}</small></td>
+                    <td>${log.upTime}-${log.downTime}</td><td>${log.duration}</td>
+                    <td><button class="btn-del" onclick="deleteLog(${log.id})">×</button></td>
+                </tr>`);
+            });
+            document.getElementById('totalTimeDisplay').innerText = total.toFixed(1);
+        }
+
+        function generateLogText() {
+            const logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
+            if (logs.length === 0) return "";
+            let body = "Flight Log Report\n\n";
+            logs.forEach((l, i) => body += `${i+1}. ${l.date} [${l.reg}] ${l.upPlace}->${l.downPlace} ${l.upTime}-${l.downTime} ${l.duration}h PIC:${l.pic}\n`);
+            navigator.clipboard.writeText(body);
+            const msg = document.getElementById('copyMessage');
+            msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 3000);
+            return body;
+        }
+
+        function sendEmail() {
+            const body = generateLogText(); if(!body) return alert("No logs");
+            window.location.href = `mailto:${localStorage.getItem('userEmailSetting')}?subject=FlightLog&body=${encodeURIComponent(body)}`;
+        }
+
+        function sendSMS() {
+            const body = generateLogText(); if(!body) return alert("No logs");
+            const phone = localStorage.getItem('userPhoneSetting') || "";
+            const sep = (navigator.userAgent.match(/iPhone|iPad|iPod/i)) ? '&' : '?';
+            window.location.href = `sms:${phone}${sep}body=${encodeURIComponent(body)}`;
+        }
+    </script>
 </body>
 </html>
