@@ -232,4 +232,13 @@
         document.getElementById('totalTimeDisplay').innerText = total.toFixed(1) + " h";
     }
 
-    function send
+    function sendEmailAndCopy() {
+        const logs = JSON.parse(localStorage.getItem('flightLogs')) || [];
+        let body = "Flight Log Report\n\n";
+        logs.forEach((l, i) => body += `${i+1}. ${l.date} [${l.reg}] ${l.upPlace}->${l.downPlace} ${l.upTime}-${l.downTime} ${l.duration}h PIC:${l.pic}\n`);
+        navigator.clipboard.writeText(body);
+        window.location.href = `mailto:${localStorage.getItem('userEmailSetting')}?subject=FlightLog&body=${encodeURIComponent(body)}`;
+    }
+</script>
+</body>
+</html>
